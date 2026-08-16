@@ -1,176 +1,109 @@
-/*
- * Divide-and-conquer algorithm to find both the maximum and minimum
- * of an array of n elements using at most ceil(3n/2) - 2 comparisons
- * (exactly 3n/2 - 2 when n is a power of two) -- 25% fewer than the
- * naive 2(n-1) comparisons a linear scan needs.
+/**
+ * Program: Max and Min using Divide & Conquer Approach
+ * ---------------------------------------------------
+ * Problem Statement:
+ *   Find the maximum and minimum elements in an array of size n using 
+ *   Divide & Conquer such that total comparisons <= 3n/2.
  *
- * Recurrence:  T(n) = 2*T(n/2) + 2,  T(1) = 0,  T(2) = 1
- * Solving for n = 2^k:  T(n) = 3n/2 - 2
+ * Algorithm Recurrence:
+ *   T(n) = 2T(n/2) + 2
+ *   Base cases:
+ *     T(1) = 0 comparisons
+ *     T(2) = 1 comparison
+ *   Total Comparisons = 3n/2 - 2 (for n power of 2)
  */
+
 #include <stdio.h>
-#include <stdlib.h>
 
-// Function to allocate a matrix
-int **allocateMatrix(int n) {
-    int **mat = (int **)malloc(n * sizeof(int *));
-    for (int i = 0; i < n; i++)
-        mat[i] = (int *)malloc(n * sizeof(int));
-    return mat;
-}
+// Structure to return both min and max from recursive calls
+typedef struct {
+    int min;
+    int max;
+} MinMax;
 
-// Function to free a matrix
-void freeMatrix(int **mat, int n) {
-    for (int i = 0; i < n; i++)
-        free(mat[i]);
-    free(mat);
-}
+/**
+ * Function: getMinMax
+ * -------------------
+ * Recursively divides the array into sub-problems and combines 
+ * min and max values.
+ *
+ * Parameters:
+ *   arr[] - Array of integers
+ *   low   - Starting index of current sub-array
+ *   high  - Ending index of current sub-array
+ *
+ * Returns:
+ *   MinMax struct containing the min and max of arr[low..high]
+ */
+MinMax getMinMax(int arr[], int low, int high) {
+    MinMax result, left, right;
+    int mid;
 
-// Matrix addition
-void add(int **A, int **B, int **C, int n) {
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            C[i][j] = A[i][j] + B[i][j];
-}
-
-// Matrix subtraction
-void subtract(int **A, int **B, int **C, int n) {
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            C[i][j] = A[i][j] - B[i][j];
-}
-
-// Strassen multiplication
-void strassen(int **A, int **B, int **C, int n) {
-    if (n == 1) {
-        C[0][0] = A[0][0] * B[0][0];
-        return;
+    // Base Case 1: Sub-array contains only 1 element
+    // Comparisons: 0
+    if (low == high) {
+        result.min = arr[low];
+        result.max = arr[low];
+        return result;
     }
 
-    int k = n / 2;
-
-    // Allocate submatrices
-    int **A11 = allocateMatrix(k);
-    int **A12 = allocateMatrix(k);
-    int **A21 = allocateMatrix(k);
-    int **A22 = allocateMatrix(k);
-
-    int **B11 = allocateMatrix(k);
-    int **B12 = allocateMatrix(k);
-    int **B21 = allocateMatrix(k);
-    int **B22 = allocateMatrix(k);
-
-    int **M1 = allocateMatrix(k);
-    int **M2 = allocateMatrix(k);
-    int **M3 = allocateMatrix(k);
-    int **M4 = allocateMatrix(k);
-    int **M5 = allocateMatrix(k);
-    int **M6 = allocateMatrix(k);
-    int **M7 = allocateMatrix(k);
-
-    int **T1 = allocateMatrix(k);
-    int **T2 = allocateMatrix(k);
-
-    // Divide matrices
-    for (int i = 0; i < k; i++) {
-        for (int j = 0; j < k; j++) {
-            A11[i][j] = A[i][j];
-            A12[i][j] = A[i][j + k];
-            A21[i][j] = A[i + k][j];
-            A22[i][j] = A[i + k][j + k];
-
-            B11[i][j] = B[i][j];
-            B12[i][j] = B[i][j + k];
-            B21[i][j] = B[i + k][j];
-            B22[i][j] = B[i + k][j + k];
+    // Base Case 2: Sub-array contains 2 elements
+    // Comparisons: 1
+    if (high == low + 1) {
+        if (arr[low] > arr[high]) {
+            result.max = arr[low];
+            result.min = arr[high];
+        } else {
+            result.max = arr[high];
+            result.min = arr[low];
         }
+        return result;
     }
 
-    // M1 = (A11 + A22)(B11 + B22)
-    add(A11, A22, T1, k);
-    add(B11, B22, T2, k);
-    strassen(T1, T2, M1, k);
+    // Divide Step: Find the midpoint
+    mid = low + (high - low) / 2;
 
-    // M2 = (A21 + A22)B11
-    add(A21, A22, T1, k);
-    strassen(T1, B11, M2, k);
+    // Conquer Step: Recursively solve left and right halves
+    left = getMinMax(arr, low, mid);
+    right = getMinMax(arr, mid + 1, high);
 
-    // M3 = A11(B12 - B22)
-    subtract(B12, B22, T2, k);
-    strassen(A11, T2, M3, k);
-
-    // M4 = A22(B21 - B11)
-    subtract(B21, B11, T2, k);
-    strassen(A22, T2, M4, k);
-
-    // M5 = (A11 + A12)B22
-    add(A11, A12, T1, k);
-    strassen(T1, B22, M5, k);
-
-    // M6 = (A21 - A11)(B11 + B12)
-    subtract(A21, A11, T1, k);
-    add(B11, B12, T2, k);
-    strassen(T1, T2, M6, k);
-
-    // M7 = (A12 - A22)(B21 + B22)
-    subtract(A12, A22, T1, k);
-    add(B21, B22, T2, k);
-    strassen(T1, T2, M7, k);
-
-    // Combine results
-    for (int i = 0; i < k; i++) {
-        for (int j = 0; j < k; j++) {
-            C[i][j] = M1[i][j] + M4[i][j] - M5[i][j] + M7[i][j];
-            C[i][j + k] = M3[i][j] + M5[i][j];
-            C[i + k][j] = M2[i][j] + M4[i][j];
-            C[i + k][j + k] = M1[i][j] - M2[i][j] + M3[i][j] + M6[i][j];
-        }
+    // Combine Step: Compare results of both halves (2 comparisons)
+    // Comparison 1: For finding overall maximum
+    if (left.max > right.max) {
+        result.max = left.max;
+    } else {
+        result.max = right.max;
     }
 
-    // Free memory
-    freeMatrix(A11, k); freeMatrix(A12, k);
-    freeMatrix(A21, k); freeMatrix(A22, k);
-    freeMatrix(B11, k); freeMatrix(B12, k);
-    freeMatrix(B21, k); freeMatrix(B22, k);
+    // Comparison 2: For finding overall minimum
+    if (left.min < right.min) {
+        result.min = left.min;
+    } else {
+        result.min = right.min;
+    }
 
-    freeMatrix(M1, k); freeMatrix(M2, k);
-    freeMatrix(M3, k); freeMatrix(M4, k);
-    freeMatrix(M5, k); freeMatrix(M6, k);
-    freeMatrix(M7, k);
-
-    freeMatrix(T1, k); freeMatrix(T2, k);
+    return result;
 }
 
 int main() {
-    int n;
-    printf("Enter matrix size (power of 2): ");
-    scanf("%d", &n);
+    int arr[] = {1000, 11, 445, 1, 330, 3000, -5, 89};
+    int n = sizeof(arr) / sizeof(arr[0]);
 
-    int **A = allocateMatrix(n);
-    int **B = allocateMatrix(n);
-    int **C = allocateMatrix(n);
+    // Function Call
+    MinMax result = getMinMax(arr, 0, n - 1);
 
-    printf("Enter Matrix A:\n");
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            scanf("%d", &A[i][j]);
-
-    printf("Enter Matrix B:\n");
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < n; j++)
-            scanf("%d", &B[i][j]);
-
-    strassen(A, B, C, n);
-
-    printf("\nResult Matrix:\n");
+    // Output Results
+    printf("Array elements: ");
     for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++)
-            printf("%d ", C[i][j]);
-        printf("\n");
+        printf("%d ", arr[i]);
     }
+    printf("\n\n");
 
-    freeMatrix(A, n);
-    freeMatrix(B, n);
-    freeMatrix(C, n);
+    printf("Minimum element : %d\n", result.min);
+    printf("Maximum element : %d\n", result.max);
+    
+    // Display Comparison Bound Verification
+    printf("Expected Max Comparisons (3n/2): %.0f\n", (3.0 * n) / 2.0);
 
     return 0;
 }
